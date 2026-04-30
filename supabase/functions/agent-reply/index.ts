@@ -247,6 +247,7 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
     return new Response(JSON.stringify({
       reply: replyText, emotion: analyzer.emotion, language: analyzer.language,
       intent: planner.intent, typingDelayMs, latencyMs: totalLatency,
+      savedFacts: memoryAgent.new_facts ?? [], platformAccountId,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("agent-reply error", e);
