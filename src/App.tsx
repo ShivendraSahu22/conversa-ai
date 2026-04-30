@@ -38,6 +38,7 @@ const App = () => (
               <Route path="/app/memory" element={<Memory />} />
               <Route path="/app/platforms" element={<Platforms />} />
               <Route path="/app/playground" element={<Playground />} />
+              <Route path="/app/multi-agent" element={<MultiAgent />} />
               <Route path="/app/logs" element={<Logs />} />
               <Route path="/app/settings" element={<Settings />} />
             </Route>
