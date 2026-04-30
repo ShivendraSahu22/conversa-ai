@@ -412,7 +412,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       message_role: "user" | "assistant" | "system"
-      platform_kind: "telegram" | "whatsapp" | "twitter"
+      platform_kind: "telegram" | "whatsapp" | "twitter" | "playground"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -542,7 +542,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       message_role: ["user", "assistant", "system"],
-      platform_kind: ["telegram", "whatsapp", "twitter"],
+      platform_kind: ["telegram", "whatsapp", "twitter", "playground"],
     },
   },
 } as const
