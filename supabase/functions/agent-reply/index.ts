@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
         required: ["intent", "steps", "response_length"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 2. ANALYZER ───────────────────────────────────────────
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
         required: ["emotion", "language", "urgency"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 3. MEMORY ─────────────────────────────────────────────
@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
         required: ["new_facts"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 4. COMMUNICATOR ───────────────────────────────────────
