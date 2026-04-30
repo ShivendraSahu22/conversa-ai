@@ -7,15 +7,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_MODEL = "google/gemini-2.5-flash";
+const OPENAI_MODEL = "gpt-4o-mini";
 
-async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, apiKey: string) {
-  const res = await fetch(AI_URL, {
+type Provider = "gemini" | "openai";
+
+function endpointFor(provider: Provider) {
+  if (provider === "openai") {
+    const key = Deno.env.get("OPENAI_API_KEY");
+    if (!key) throw new Error("OPENAI_API_KEY not configured");
+    return { url: OPENAI_URL, key, model: OPENAI_MODEL };
+  }
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) throw new Error("LOVABLE_API_KEY not configured");
+  return { url: LOVABLE_URL, key, model: GEMINI_MODEL };
+}
+
+async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini") {
+  const { url, key, model } = endpointFor(provider);
+  const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       tools: [{ type: "function", function: { name: schemaName, description: "Return structured output", parameters: schema } }],
       tool_choice: { type: "function", function: { name: schemaName } },
@@ -23,7 +39,7 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -31,18 +47,19 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   return JSON.parse(args);
 }
 
-async function aiText(systemPrompt: string, userPrompt: string, apiKey: string) {
-  const res = await fetch(AI_URL, {
+async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini") {
+  const { url, key, model } = endpointFor(provider);
+  const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
     }),
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
