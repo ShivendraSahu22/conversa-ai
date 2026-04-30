@@ -285,22 +285,33 @@ Reply in character as ${persona.name}. Do NOT prefix your reply with your name. 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {PERSONAS.map((p) => {
             const active = selected.includes(p.id);
+            const prov = providerFor(p.id);
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => togglePersona(p.id)}
                 className={`text-left rounded-lg border p-3 transition-all ${
                   active ? `${p.color} ring-2 ring-primary/40` : "bg-card border-border hover:border-primary/40"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{p.emoji}</span>
-                  <span className="font-semibold text-sm">{p.name}</span>
-                  <Checkbox checked={active} className="ml-auto pointer-events-none" />
-                </div>
-                <div className="text-[11px] text-muted-foreground mt-1">{p.tone}</div>
-              </button>
+                <button type="button" onClick={() => togglePersona(p.id)} className="w-full text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{p.emoji}</span>
+                    <span className="font-semibold text-sm">{p.name}</span>
+                    <Checkbox checked={active} className="ml-auto pointer-events-none" />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-1">{p.tone}</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); cycleProvider(p.id); }}
+                  disabled={running}
+                  className="mt-2 w-full text-[10px] font-medium px-2 py-1 rounded-md border border-border bg-background/50 hover:bg-background transition-colors flex items-center justify-center gap-1"
+                  title="Click to switch AI provider"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {prov === "openai" ? "ChatGPT (GPT-4o-mini)" : "Gemini 2.5 Flash"}
+                </button>
+              </div>
             );
           })}
         </div>
