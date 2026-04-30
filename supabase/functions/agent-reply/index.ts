@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [] } = body;
+    const { message, platform = "playground", platformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone } = body;
 
     // resolve owner from auth header (playground) or body (server-side trigger)
     let ownerId = bodyOwnerId as string | undefined;
