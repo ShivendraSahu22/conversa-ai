@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
-import { LayoutDashboard, MessagesSquare, Brain, Plug, Settings as SettingsIcon, ScrollText, Sparkles, LogOut, Wand2 } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, Brain, Plug, Settings as SettingsIcon, ScrollText, Sparkles, LogOut, Wand2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
