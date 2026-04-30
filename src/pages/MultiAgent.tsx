@@ -134,9 +134,15 @@ Reply in character as ${persona.name}. Do NOT prefix your reply with your name. 
         history: [],
         overrideSystemPrompt: persona.systemPrompt,
         overrideTone: persona.tone,
+        memoryScope: "multi-agent",
       },
     });
     if (error) throw error;
+    if (data?.savedFacts?.length) {
+      for (const f of data.savedFacts) {
+        toast.success(`🧠 Remembered: ${f.key}`, { description: f.value });
+      }
+    }
     return (data?.reply ?? "").trim();
   };
 
