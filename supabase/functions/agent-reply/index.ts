@@ -85,12 +85,16 @@ Deno.serve(async (req) => {
     if (!ownerId) {
       const auth = req.headers.get("Authorization");
       if (auth?.startsWith("Bearer ")) {
-        const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
-        const { data } = await userClient.auth.getUser();
-        ownerId = data.user?.id;
+        const token = auth.slice(7);
+        try {
+          const { data } = await supabase.auth.getUser(token);
+          ownerId = data.user?.id;
+        } catch (e) {
+          console.error("getUser failed", e);
+        }
       }
     }
-    if (!ownerId) throw new Error("no owner");
+    if (!ownerId) throw new Error("no owner — missing or invalid Authorization header");
 
     // load personality
     const { data: persona } = await supabase.from("agent_personality").select("*").eq("owner_id", ownerId).maybeSingle();
