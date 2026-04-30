@@ -69,8 +69,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const start = Date.now();
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not set" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -78,7 +76,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope } = body;
+    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope, provider: rawProvider } = body;
+    const provider: Provider = rawProvider === "openai" ? "openai" : "gemini";
     let platformAccountId = incomingPlatformAccountId as string | undefined;
 
     // resolve owner from auth header (playground) or body (server-side trigger)
