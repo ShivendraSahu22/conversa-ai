@@ -1,0 +1,1 @@
+ALTER TYPE public.platform_kind ADD VALUE IF NOT EXISTS 'playground';

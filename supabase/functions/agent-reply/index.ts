@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone } = body;
+    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope } = body;
+    let platformAccountId = incomingPlatformAccountId as string | undefined;
 
     // resolve owner from auth header (playground) or body (server-side trigger)
     let ownerId = bodyOwnerId as string | undefined;
@@ -82,16 +83,31 @@ Deno.serve(async (req) => {
     const tone = overrideTone ?? persona?.default_tone ?? "friendly";
     const langs = (persona?.languages ?? ["en"]).join(", ");
 
+    // resolve / auto-provision a platform account for playground memory scopes
+    if (!platformAccountId && memoryScope) {
+      const externalId = `pg:${memoryScope}`;
+      const { data: existing } = await supabase.from("platform_accounts")
+        .select("id").eq("owner_id", ownerId).eq("platform", "playground").eq("external_id", externalId).maybeSingle();
+      if (existing) {
+        platformAccountId = existing.id;
+      } else {
+        const { data: created } = await supabase.from("platform_accounts").insert({
+          owner_id: ownerId, platform: "playground", external_id: externalId, display_name: memoryScope,
+        }).select("id").single();
+        platformAccountId = created?.id;
+      }
+    }
+
     // load memory + recent messages for context
     let memoryFacts: any[] = [];
     let recentMessages: any[] = history;
     if (!playground && conversationId) {
       const { data: m } = await supabase.from("messages").select("role, content").eq("conversation_id", conversationId).order("created_at", { ascending: false }).limit(12);
       recentMessages = (m ?? []).reverse();
-      if (platformAccountId) {
-        const { data: mem } = await supabase.from("long_term_memory").select("key, value").eq("platform_account_id", platformAccountId).order("importance", { ascending: false }).limit(15);
-        memoryFacts = mem ?? [];
-      }
+    }
+    if (platformAccountId) {
+      const { data: mem } = await supabase.from("long_term_memory").select("key, value").eq("platform_account_id", platformAccountId).order("importance", { ascending: false }).limit(15);
+      memoryFacts = mem ?? [];
     }
 
     const conversationContext = recentMessages.map((m: any) => `${m.role}: ${m.content}`).join("\n");
@@ -231,6 +247,7 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
     return new Response(JSON.stringify({
       reply: replyText, emotion: analyzer.emotion, language: analyzer.language,
       intent: planner.intent, typingDelayMs, latencyMs: totalLatency,
+      savedFacts: memoryAgent.new_facts ?? [], platformAccountId,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("agent-reply error", e);
