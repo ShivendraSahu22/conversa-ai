@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         required: ["intent", "steps", "response_length"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 2. ANALYZER ───────────────────────────────────────────
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
         required: ["emotion", "language", "urgency"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 3. MEMORY ─────────────────────────────────────────────
@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
         required: ["new_facts"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 4. COMMUNICATOR ───────────────────────────────────────
@@ -214,7 +214,7 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
 
     const commUser = `Memory you have about this user:\n${memoryContext}\n\nRecent conversation:\n${conversationContext}\n\nUser just said: "${message}"\n\nReply now, in their language, naturally.`;
 
-    const replyText = (await aiText(commSystem, commUser, apiKey)).trim();
+    const replyText = (await aiText(commSystem, commUser, provider)).trim();
 
     // persist new memory facts (server-side bypasses RLS)
     if (memoryAgent.new_facts?.length && platformAccountId) {
