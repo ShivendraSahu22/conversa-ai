@@ -25,7 +25,13 @@ function endpointFor(provider: Provider) {
   return { url: LOVABLE_URL, key, model: GEMINI_MODEL };
 }
 
-async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini") {
+function shouldFallback(status: number, provider: Provider) {
+  return provider === "gemini"
+    && (status === 429 || status >= 500)
+    && !!Deno.env.get("OPENAI_API_KEY");
+}
+
+async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini"): Promise<any> {
   const { url, key, model } = endpointFor(provider);
   const res = await fetch(url, {
     method: "POST",
@@ -39,7 +45,13 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    if (shouldFallback(res.status, provider)) {
+      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
+      return aiJson(systemPrompt, userPrompt, schemaName, schema, "openai");
+    }
+    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -47,7 +59,7 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   return JSON.parse(args);
 }
 
-async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini") {
+async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini"): Promise<string> {
   const { url, key, model } = endpointFor(provider);
   const res = await fetch(url, {
     method: "POST",
@@ -59,7 +71,13 @@ async function aiText(systemPrompt: string, userPrompt: string, provider: Provid
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    if (shouldFallback(res.status, provider)) {
+      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
+      return aiText(systemPrompt, userPrompt, "openai");
+    }
+    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
