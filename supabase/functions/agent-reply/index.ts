@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [] } = body;
+    const { message, platform = "playground", platformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone } = body;
 
     // resolve owner from auth header (playground) or body (server-side trigger)
     let ownerId = bodyOwnerId as string | undefined;
@@ -78,8 +78,8 @@ Deno.serve(async (req) => {
     // load personality
     const { data: persona } = await supabase.from("agent_personality").select("*").eq("owner_id", ownerId).maybeSingle();
     const agentName = persona?.agent_name ?? "Aria";
-    const systemBase = persona?.system_prompt ?? "You are a warm, casual AI assistant.";
-    const tone = persona?.default_tone ?? "friendly";
+    const systemBase = overrideSystemPrompt ?? persona?.system_prompt ?? "You are a warm, casual AI assistant.";
+    const tone = overrideTone ?? persona?.default_tone ?? "friendly";
     const langs = (persona?.languages ?? ["en"]).join(", ");
 
     // load memory + recent messages for context

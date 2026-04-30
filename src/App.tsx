@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Platforms from "./pages/Platforms";
 import Logs from "./pages/Logs";
 import Playground from "./pages/Playground";
+import MultiAgent from "./pages/MultiAgent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/app/memory" element={<Memory />} />
               <Route path="/app/platforms" element={<Platforms />} />
               <Route path="/app/playground" element={<Playground />} />
+              <Route path="/app/multi-agent" element={<MultiAgent />} />
               <Route path="/app/logs" element={<Logs />} />
               <Route path="/app/settings" element={<Settings />} />
             </Route>
