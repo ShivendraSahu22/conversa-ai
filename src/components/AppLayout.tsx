@@ -10,6 +10,7 @@ const items = [
   { title: "Memory", url: "/app/memory", icon: Brain },
   { title: "Platforms", url: "/app/platforms", icon: Plug },
   { title: "Playground", url: "/app/playground", icon: Wand2 },
+  { title: "Multi-Agent", url: "/app/multi-agent", icon: Users },
   { title: "Logs", url: "/app/logs", icon: ScrollText },
   { title: "Settings", url: "/app/settings", icon: SettingsIcon },
 ];
