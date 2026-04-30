@@ -142,6 +142,7 @@ Reply in character as ${persona.name}. Do NOT prefix your reply with your name. 
         overrideSystemPrompt: persona.systemPrompt,
         overrideTone: persona.tone,
         memoryScope: "multi-agent",
+        provider: providerFor(persona.id),
       },
     });
     if (error) throw error;
