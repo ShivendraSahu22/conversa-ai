@@ -85,12 +85,9 @@ type Msg = {
   content: string;
 };
 
-type Provider = "gemini" | "openai";
-
 const MultiAgent = () => {
   const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>(["aria", "max", "nova"]);
-  const [providers, setProviders] = useState<Record<string, Provider>>({});
   const [messages, setMessages] = useState<Msg[]>([]);
   const [topic, setTopic] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -99,10 +96,6 @@ const MultiAgent = () => {
   const [rounds, setRounds] = useState(3);
   const stopRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const providerFor = (id: string): Provider => providers[id] ?? "gemini";
-  const cycleProvider = (id: string) =>
-    setProviders((prev) => ({ ...prev, [id]: providerFor(id) === "gemini" ? "openai" : "gemini" }));
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
