@@ -7,15 +7,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash";
+const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_MODEL = "google/gemini-2.5-flash";
+const OPENAI_MODEL = "gpt-4o-mini";
 
-async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, apiKey: string) {
-  const res = await fetch(AI_URL, {
+type Provider = "gemini" | "openai";
+
+function endpointFor(provider: Provider) {
+  if (provider === "openai") {
+    const key = Deno.env.get("OPENAI_API_KEY");
+    if (!key) throw new Error("OPENAI_API_KEY not configured");
+    return { url: OPENAI_URL, key, model: OPENAI_MODEL };
+  }
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) throw new Error("LOVABLE_API_KEY not configured");
+  return { url: LOVABLE_URL, key, model: GEMINI_MODEL };
+}
+
+async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini") {
+  const { url, key, model } = endpointFor(provider);
+  const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       tools: [{ type: "function", function: { name: schemaName, description: "Return structured output", parameters: schema } }],
       tool_choice: { type: "function", function: { name: schemaName } },
@@ -23,7 +39,7 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -31,18 +47,19 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   return JSON.parse(args);
 }
 
-async function aiText(systemPrompt: string, userPrompt: string, apiKey: string) {
-  const res = await fetch(AI_URL, {
+async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini") {
+  const { url, key, model } = endpointFor(provider);
+  const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
     }),
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI ${res.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
@@ -52,8 +69,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const start = Date.now();
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not set" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -61,7 +76,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope } = body;
+    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope, provider: rawProvider } = body;
+    const provider: Provider = rawProvider === "openai" ? "openai" : "gemini";
     let platformAccountId = incomingPlatformAccountId as string | undefined;
 
     // resolve owner from auth header (playground) or body (server-side trigger)
@@ -129,7 +145,7 @@ Deno.serve(async (req) => {
         required: ["intent", "steps", "response_length"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 2. ANALYZER ───────────────────────────────────────────
@@ -148,7 +164,7 @@ Deno.serve(async (req) => {
         required: ["emotion", "language", "urgency"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 3. MEMORY ─────────────────────────────────────────────
@@ -172,7 +188,7 @@ Deno.serve(async (req) => {
         required: ["new_facts"],
         additionalProperties: false,
       },
-      apiKey,
+    
     );
 
     // ─── 4. COMMUNICATOR ───────────────────────────────────────
@@ -198,7 +214,7 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
 
     const commUser = `Memory you have about this user:\n${memoryContext}\n\nRecent conversation:\n${conversationContext}\n\nUser just said: "${message}"\n\nReply now, in their language, naturally.`;
 
-    const replyText = (await aiText(commSystem, commUser, apiKey)).trim();
+    const replyText = (await aiText(commSystem, commUser, provider)).trim();
 
     // persist new memory facts (server-side bypasses RLS)
     if (memoryAgent.new_facts?.length && platformAccountId) {
