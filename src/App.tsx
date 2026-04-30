@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Platforms from "./pages/Platforms";
 import Logs from "./pages/Logs";
 import Playground from "./pages/Playground";
+import MultiAgent from "./pages/MultiAgent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
