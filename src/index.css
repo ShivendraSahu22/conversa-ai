@@ -2,104 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
+/* Aria — Human-Like AI Communication design system */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 230 25% 98%;
+    --foreground: 230 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 230 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 230 30% 12%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 252 80% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 270 90% 72%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 230 25% 95%;
+    --secondary-foreground: 230 30% 18%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 230 20% 94%;
+    --muted-foreground: 230 12% 42%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 180 70% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 145 65% 42%;
+    --warning: 38 92% 55%;
 
-    --radius: 0.5rem;
+    --border: 230 20% 90%;
+    --input: 230 20% 90%;
+    --ring: 252 80% 60%;
 
-    --sidebar-background: 0 0% 98%;
+    --radius: 0.85rem;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --gradient-primary: linear-gradient(135deg, hsl(252 80% 60%), hsl(270 90% 72%));
+    --gradient-soft: linear-gradient(135deg, hsl(252 80% 60% / 0.08), hsl(180 70% 45% / 0.08));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(252 80% 60% / 0.18), transparent 60%);
 
-    --sidebar-primary: 240 5.9% 10%;
+    --shadow-elegant: 0 10px 40px -12px hsl(252 80% 60% / 0.25);
+    --shadow-glow: 0 0 32px hsl(270 90% 72% / 0.35);
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-background: 230 30% 99%;
+    --sidebar-foreground: 230 30% 18%;
+    --sidebar-primary: 252 80% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 25% 95%;
+    --sidebar-accent-foreground: 230 30% 18%;
+    --sidebar-border: 230 20% 90%;
+    --sidebar-ring: 252 80% 60%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* platform brand colors */
+    --telegram: 200 95% 50%;
+    --whatsapp: 142 70% 45%;
+    --twitter: 230 30% 12%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 230 30% 7%;
+    --foreground: 230 15% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 230 28% 10%;
+    --card-foreground: 230 15% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 230 28% 10%;
+    --popover-foreground: 230 15% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 252 85% 68%;
+    --primary-foreground: 230 30% 8%;
+    --primary-glow: 270 95% 78%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 230 25% 14%;
+    --secondary-foreground: 230 15% 92%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 230 22% 14%;
+    --muted-foreground: 230 10% 62%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 180 70% 50%;
+    --accent-foreground: 230 30% 8%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 145 55% 50%;
+    --warning: 38 92% 60%;
+
+    --border: 230 22% 18%;
+    --input: 230 22% 18%;
+    --ring: 252 85% 68%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(252 85% 68%), hsl(270 95% 78%));
+    --gradient-soft: linear-gradient(135deg, hsl(252 85% 68% / 0.12), hsl(180 70% 50% / 0.12));
+    --gradient-hero: radial-gradient(ellipse at top, hsl(252 85% 68% / 0.25), transparent 60%);
+
+    --shadow-elegant: 0 10px 40px -12px hsl(0 0% 0% / 0.6);
+    --shadow-glow: 0 0 32px hsl(270 95% 78% / 0.4);
+
+    --sidebar-background: 230 30% 8%;
+    --sidebar-foreground: 230 15% 88%;
+    --sidebar-primary: 252 85% 68%;
+    --sidebar-primary-foreground: 230 30% 8%;
+    --sidebar-accent: 230 25% 14%;
+    --sidebar-accent-foreground: 230 15% 92%;
+    --sidebar-border: 230 22% 18%;
+    --sidebar-ring: 252 85% 68%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; font-feature-settings: "ss01","cv11"; }
+  html { scroll-behavior: smooth; }
 }
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+  .surface-glow {
+    box-shadow: var(--shadow-elegant);
+  }
+  .typing-dot {
+    @apply inline-block w-1.5 h-1.5 rounded-full bg-current;
+    animation: typing-bounce 1.2s infinite ease-in-out;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.4s ease-out both; }

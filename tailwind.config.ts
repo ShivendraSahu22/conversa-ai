@@ -57,6 +57,17 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        telegram: "hsl(var(--telegram))",
+        whatsapp: "hsl(var(--whatsapp))",
+        twitter: "hsl(var(--twitter))",
+        "primary-glow": "hsl(var(--primary-glow))",
+      },
+      backgroundImage: {
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-soft": "var(--gradient-soft)",
+        "gradient-hero": "var(--gradient-hero)",
       },
       borderRadius: {
         lg: "var(--radius)",
