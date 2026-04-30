@@ -290,6 +290,12 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
   } catch (e: any) {
     console.error("agent-reply error", e);
     await supabase.from("agent_logs").insert({ level: "error", event: "agent_reply_failed", payload: { error: String(e) } });
-    return new Response(JSON.stringify({ error: e.message ?? "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const status = e?.status === 429 ? 429 : e?.status === 402 ? 402 : 500;
+    const friendly = status === 429
+      ? "AI is rate-limited right now. Switch this agent to ChatGPT or wait a moment."
+      : status === 402
+      ? "AI credits exhausted. Add credits in Settings → Workspace → Usage."
+      : (e.message ?? "unknown");
+    return new Response(JSON.stringify({ error: friendly }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
