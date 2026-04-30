@@ -25,7 +25,13 @@ function endpointFor(provider: Provider) {
   return { url: LOVABLE_URL, key, model: GEMINI_MODEL };
 }
 
-async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini") {
+function shouldFallback(status: number, provider: Provider) {
+  return provider === "gemini"
+    && (status === 429 || status >= 500)
+    && !!Deno.env.get("OPENAI_API_KEY");
+}
+
+async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini"): Promise<any> {
   const { url, key, model } = endpointFor(provider);
   const res = await fetch(url, {
     method: "POST",
@@ -39,7 +45,13 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    if (shouldFallback(res.status, provider)) {
+      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
+      return aiJson(systemPrompt, userPrompt, schemaName, schema, "openai");
+    }
+    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
@@ -47,7 +59,7 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   return JSON.parse(args);
 }
 
-async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini") {
+async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini"): Promise<string> {
   const { url, key, model } = endpointFor(provider);
   const res = await fetch(url, {
     method: "POST",
@@ -59,7 +71,13 @@ async function aiText(systemPrompt: string, userPrompt: string, provider: Provid
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    if (shouldFallback(res.status, provider)) {
+      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
+      return aiText(systemPrompt, userPrompt, "openai");
+    }
+    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content ?? "";
@@ -149,7 +167,7 @@ Deno.serve(async (req) => {
         required: ["intent", "steps", "response_length"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 2. ANALYZER ───────────────────────────────────────────
@@ -168,7 +186,7 @@ Deno.serve(async (req) => {
         required: ["emotion", "language", "urgency"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 3. MEMORY ─────────────────────────────────────────────
@@ -192,7 +210,7 @@ Deno.serve(async (req) => {
         required: ["new_facts"],
         additionalProperties: false,
       },
-    
+      provider,
     );
 
     // ─── 4. COMMUNICATOR ───────────────────────────────────────
@@ -272,6 +290,12 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
   } catch (e: any) {
     console.error("agent-reply error", e);
     await supabase.from("agent_logs").insert({ level: "error", event: "agent_reply_failed", payload: { error: String(e) } });
-    return new Response(JSON.stringify({ error: e.message ?? "unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const status = e?.status === 429 ? 429 : e?.status === 402 ? 402 : 500;
+    const friendly = status === 429
+      ? "AI is rate-limited right now. Switch this agent to ChatGPT or wait a moment."
+      : status === 402
+      ? "AI credits exhausted. Add credits in Settings → Workspace → Usage."
+      : (e.message ?? "unknown");
+    return new Response(JSON.stringify({ error: friendly }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
