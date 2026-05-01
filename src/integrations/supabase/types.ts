@@ -471,6 +471,36 @@ export type Database = {
         }
         Relationships: []
       }
+      twitter_credentials: {
+        Row: {
+          access_token: string
+          access_token_secret: string
+          consumer_key: string
+          consumer_secret: string
+          owner_id: string
+          screen_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          access_token_secret: string
+          consumer_key: string
+          consumer_secret: string
+          owner_id: string
+          screen_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          access_token_secret?: string
+          consumer_key?: string
+          consumer_secret?: string
+          owner_id?: string
+          screen_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
