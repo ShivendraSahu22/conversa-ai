@@ -10,7 +10,7 @@ const Landing = () => {
           <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center surface-glow">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold tracking-tight">Aria</span>
+          <span className="font-semibold tracking-tight">Techbook</span>
         </div>
         <Link to="/auth"><Button variant="outline" size="sm">Sign in</Button></Link>
       </header>
@@ -26,7 +26,7 @@ const Landing = () => {
             AI that talks like <span className="gradient-text">a real human</span>.
           </h1>
           <p className="mt-5 text-lg text-muted-foreground animate-fade-up">
-            Aria is a multi-agent assistant that handles your messages across platforms — casual, context-aware,
+            Techbook is a multi-agent assistant that handles your messages across platforms — casual, context-aware,
             emotionally tuned. Plans, analyzes, remembers, and replies in your voice.
           </p>
           <div className="mt-8 flex justify-center gap-3 animate-fade-up">

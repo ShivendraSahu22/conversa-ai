@@ -28,7 +28,7 @@ const AppSidebar = () => {
           <div className="h-8 w-8 rounded-lg bg-gradient-primary grid place-items-center surface-glow">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
           </div>
-          {!collapsed && <div className="font-semibold tracking-tight">Aria</div>}
+          {!collapsed && <div className="font-semibold tracking-tight">Techbook</div>}
         </div>
       </SidebarHeader>
       <SidebarContent>

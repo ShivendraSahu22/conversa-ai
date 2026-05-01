@@ -62,7 +62,7 @@ const Auth = () => {
       <Card className="relative w-full max-w-md p-8 surface-glow">
         <Link to="/" className="flex items-center gap-2 mb-6">
           <div className="h-8 w-8 rounded-lg bg-gradient-primary grid place-items-center"><Sparkles className="h-4 w-4 text-primary-foreground" /></div>
-          <span className="font-semibold">Aria</span>
+          <span className="font-semibold">Techbook</span>
         </Link>
         <h1 className="text-2xl font-bold mb-1">Welcome</h1>
         <p className="text-sm text-muted-foreground mb-6">Sign in to manage your AI agent.</p>
