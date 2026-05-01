@@ -378,6 +378,99 @@ export type Database = {
         }
         Relationships: []
       }
+      trend_posts: {
+        Row: {
+          content: string
+          created_at: string
+          error: string | null
+          id: string
+          owner_id: string
+          posted_at: string | null
+          status: string
+          topic: string
+          twitter_post_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          owner_id: string
+          posted_at?: string | null
+          status?: string
+          topic: string
+          twitter_post_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          owner_id?: string
+          posted_at?: string | null
+          status?: string
+          topic?: string
+          twitter_post_id?: string | null
+        }
+        Relationships: []
+      }
+      trending_topics: {
+        Row: {
+          fetched_at: string
+          id: string
+          owner_id: string
+          rank: number | null
+          region: string
+          source: string
+          topic: string
+        }
+        Insert: {
+          fetched_at?: string
+          id?: string
+          owner_id: string
+          rank?: number | null
+          region?: string
+          source?: string
+          topic: string
+        }
+        Update: {
+          fetched_at?: string
+          id?: string
+          owner_id?: string
+          rank?: number | null
+          region?: string
+          source?: string
+          topic?: string
+        }
+        Relationships: []
+      }
+      trends_settings: {
+        Row: {
+          auto_post: boolean
+          enabled: boolean
+          owner_id: string
+          region: string
+          topics_per_run: number
+          updated_at: string
+        }
+        Insert: {
+          auto_post?: boolean
+          enabled?: boolean
+          owner_id: string
+          region?: string
+          topics_per_run?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_post?: boolean
+          enabled?: boolean
+          owner_id?: string
+          region?: string
+          topics_per_run?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
