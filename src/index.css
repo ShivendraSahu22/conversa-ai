@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Aria — Human-Like AI Communication design system */
+/* Techbook — Human-Like AI Communication design system */
 @layer base {
   :root {
     --background: 230 25% 98%;

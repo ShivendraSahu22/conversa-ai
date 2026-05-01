@@ -6,8 +6,8 @@ import { Send, MessageCircle, Twitter, ExternalLink } from "lucide-react";
 const platforms = [
   {
     id: "telegram", name: "Telegram", icon: Send, color: "bg-telegram",
-    desc: "Connect a bot via @BotFather and Aria will reply automatically.",
-    setup: ["Open @BotFather on Telegram and create a bot", "Copy the token", "Connect the Telegram connector in Lovable", "Aria starts polling within 1 minute"],
+    desc: "Connect a bot via @BotFather and Techbook will reply automatically.",
+    setup: ["Open @BotFather on Telegram and create a bot", "Copy the token", "Connect the Telegram connector in Lovable", "Techbook starts polling within 1 minute"],
     status: "scaffolded",
   },
   {
@@ -28,7 +28,7 @@ const Platforms = () => (
   <div className="space-y-6 animate-fade-up">
     <div>
       <h1 className="text-3xl font-bold tracking-tight">Platforms</h1>
-      <p className="text-muted-foreground">Connect channels where Aria will talk to people.</p>
+      <p className="text-muted-foreground">Connect channels where Techbook will talk to people.</p>
     </div>
     <div className="grid md:grid-cols-3 gap-4">
       {platforms.map((p) => (
