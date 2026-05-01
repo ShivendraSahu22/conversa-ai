@@ -27,7 +27,7 @@ const Playground = () => {
     setBusy(true); setTyping(true);
     try {
       const { data, error } = await supabase.functions.invoke("agent-reply", {
-        body: { message: userMsg, playground: true, playgroundConvId: convId, history: messages },
+        body: { message: userMsg, playground: true, playgroundConvId: convId },
       });
       if (error) throw error;
       // simulate typing pause based on response length
