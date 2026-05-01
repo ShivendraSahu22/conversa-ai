@@ -1,6 +1,8 @@
-// Multi-agent reply pipeline: Planner -> Analyzer -> Memory -> Communicator
-// Uses Lovable AI Gateway. Logs full trace to agent_runs.
+// Multi-agent reply pipeline (Gemini-only) with MongoDB-backed memory.
+// Short-term: last N messages per user in `chat_history`
+// Long-term: durable facts per user in `user_memory`
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MongoClient } from "npm:mongodb@6.10.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,36 +10,35 @@ const corsHeaders = {
 };
 
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const GEMINI_MODEL = "google/gemini-2.5-flash";
-const OPENAI_MODEL = "gpt-4o-mini";
 
-type Provider = "gemini" | "openai";
+const SHORT_TERM_LIMIT = 20; // last N messages kept as rolling context
+const LONG_TERM_LIMIT = 25;
 
-function endpointFor(provider: Provider) {
-  if (provider === "openai") {
-    const key = Deno.env.get("OPENAI_API_KEY");
-    if (!key) throw new Error("OPENAI_API_KEY not configured");
-    return { url: OPENAI_URL, key, model: OPENAI_MODEL };
-  }
+// ─── Mongo singleton (reuse across warm invocations) ───────────
+let mongoClient: MongoClient | null = null;
+async function getMongo() {
+  if (mongoClient) return mongoClient;
+  const uri = Deno.env.get("MONGODB_URI");
+  if (!uri) throw new Error("MONGODB_URI not configured");
+  mongoClient = new MongoClient(uri);
+  await mongoClient.connect();
+  return mongoClient;
+}
+function db() {
+  if (!mongoClient) throw new Error("mongo not connected");
+  return mongoClient.db("agent_memory");
+}
+
+// ─── Lovable AI Gateway (Gemini only) ──────────────────────────
+async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any): Promise<any> {
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) throw new Error("LOVABLE_API_KEY not configured");
-  return { url: LOVABLE_URL, key, model: GEMINI_MODEL };
-}
-
-function shouldFallback(status: number, provider: Provider) {
-  return provider === "gemini"
-    && (status === 429 || status >= 500)
-    && !!Deno.env.get("OPENAI_API_KEY");
-}
-
-async function aiJson(systemPrompt: string, userPrompt: string, schemaName: string, schema: any, provider: Provider = "gemini"): Promise<any> {
-  const { url, key, model } = endpointFor(provider);
-  const res = await fetch(url, {
+  const res = await fetch(LOVABLE_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model,
+      model: GEMINI_MODEL,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       tools: [{ type: "function", function: { name: schemaName, description: "Return structured output", parameters: schema } }],
       tool_choice: { type: "function", function: { name: schemaName } },
@@ -45,11 +46,7 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   });
   if (!res.ok) {
     const t = await res.text();
-    if (shouldFallback(res.status, provider)) {
-      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
-      return aiJson(systemPrompt, userPrompt, schemaName, schema, "openai");
-    }
-    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    const err: any = new Error(`Gemini ${res.status}: ${t.slice(0, 200)}`);
     err.status = res.status;
     throw err;
   }
@@ -59,23 +56,20 @@ async function aiJson(systemPrompt: string, userPrompt: string, schemaName: stri
   return JSON.parse(args);
 }
 
-async function aiText(systemPrompt: string, userPrompt: string, provider: Provider = "gemini"): Promise<string> {
-  const { url, key, model } = endpointFor(provider);
-  const res = await fetch(url, {
+async function aiText(systemPrompt: string, userPrompt: string): Promise<string> {
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) throw new Error("LOVABLE_API_KEY not configured");
+  const res = await fetch(LOVABLE_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model,
+      model: GEMINI_MODEL,
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
     }),
   });
   if (!res.ok) {
     const t = await res.text();
-    if (shouldFallback(res.status, provider)) {
-      console.warn(`AI(${provider}) ${res.status} — falling back to openai`);
-      return aiText(systemPrompt, userPrompt, "openai");
-    }
-    const err: any = new Error(`AI(${provider}) ${res.status}: ${t.slice(0, 200)}`);
+    const err: any = new Error(`Gemini ${res.status}: ${t.slice(0, 200)}`);
     err.status = res.status;
     throw err;
   }
@@ -87,18 +81,24 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const start = Date.now();
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
     const body = await req.json();
-    const { message, platform = "playground", platformAccountId: incomingPlatformAccountId, conversationId, ownerId: bodyOwnerId, playground, playgroundConvId, history = [], overrideSystemPrompt, overrideTone, memoryScope, provider: rawProvider } = body;
-    const provider: Provider = rawProvider === "openai" ? "openai" : "gemini";
-    let platformAccountId = incomingPlatformAccountId as string | undefined;
+    const {
+      message,
+      platform = "playground",
+      conversationId,
+      ownerId: bodyOwnerId,
+      playground,
+      playgroundConvId, // optional sub-scope (e.g. multiple playground threads per user)
+      overrideSystemPrompt,
+      overrideTone,
+    } = body;
 
-    // resolve owner from auth header (playground) or body (server-side trigger)
+    // resolve owner from auth or body
     let ownerId = bodyOwnerId as string | undefined;
     if (!ownerId) {
       const auth = req.headers.get("Authorization");
@@ -114,6 +114,9 @@ Deno.serve(async (req) => {
     }
     if (!ownerId) throw new Error("no owner — missing or invalid Authorization header");
 
+    // Memory scope key — per user, optionally per playground thread
+    const scopeId = playground ? `pg:${ownerId}:${playgroundConvId ?? "default"}` : `conv:${conversationId ?? ownerId}`;
+
     // load personality
     const { data: persona } = await supabase.from("agent_personality").select("*").eq("owner_id", ownerId).maybeSingle();
     const agentName = persona?.agent_name ?? "Aria";
@@ -121,34 +124,26 @@ Deno.serve(async (req) => {
     const tone = overrideTone ?? persona?.default_tone ?? "friendly";
     const langs = (persona?.languages ?? ["en"]).join(", ");
 
-    // resolve / auto-provision a platform account for playground memory scopes
-    if (!platformAccountId && memoryScope) {
-      const externalId = `pg:${memoryScope}`;
-      const { data: existing } = await supabase.from("platform_accounts")
-        .select("id").eq("owner_id", ownerId).eq("platform", "playground").eq("external_id", externalId).maybeSingle();
-      if (existing) {
-        platformAccountId = existing.id;
-      } else {
-        const { data: created } = await supabase.from("platform_accounts").insert({
-          owner_id: ownerId, platform: "playground", external_id: externalId, display_name: memoryScope,
-        }).select("id").single();
-        platformAccountId = created?.id;
-      }
-    }
+    // ─── MEMORY LOAD (Mongo) ────────────────────────────────────
+    await getMongo();
+    const chatCol = db().collection("chat_history");
+    const memCol = db().collection("user_memory");
 
-    // load memory + recent messages for context
-    let memoryFacts: any[] = [];
-    let recentMessages: any[] = history;
-    if (!playground && conversationId) {
-      const { data: m } = await supabase.from("messages").select("role, content").eq("conversation_id", conversationId).order("created_at", { ascending: false }).limit(12);
-      recentMessages = (m ?? []).reverse();
-    }
-    if (platformAccountId) {
-      const { data: mem } = await supabase.from("long_term_memory").select("key, value").eq("platform_account_id", platformAccountId).order("importance", { ascending: false }).limit(15);
-      memoryFacts = mem ?? [];
-    }
+    const recentDocs = await chatCol
+      .find({ owner_id: ownerId, scope_id: scopeId })
+      .sort({ created_at: -1 })
+      .limit(SHORT_TERM_LIMIT)
+      .toArray();
+    const recentMessages = recentDocs.reverse().map((d: any) => ({ role: d.role, content: d.content }));
 
-    const conversationContext = recentMessages.map((m: any) => `${m.role}: ${m.content}`).join("\n");
+    const memoryDocs = await memCol
+      .find({ owner_id: ownerId })
+      .sort({ importance: -1, updated_at: -1 })
+      .limit(LONG_TERM_LIMIT)
+      .toArray();
+    const memoryFacts = memoryDocs.map((d: any) => ({ key: d.key, value: d.value }));
+
+    const conversationContext = recentMessages.map((m) => `${m.role}: ${m.content}`).join("\n") || "(no prior turns)";
     const memoryContext = memoryFacts.map((m) => `- ${m.key}: ${m.value}`).join("\n") || "(none)";
 
     // ─── 1. PLANNER ────────────────────────────────────────────
@@ -159,15 +154,14 @@ Deno.serve(async (req) => {
       {
         type: "object",
         properties: {
-          intent: { type: "string", description: "short user intent" },
-          steps: { type: "array", items: { type: "string" }, description: "1-3 reasoning steps" },
+          intent: { type: "string" },
+          steps: { type: "array", items: { type: "string" } },
           needs_followup: { type: "boolean" },
           response_length: { type: "string", enum: ["short", "medium", "long"] },
         },
         required: ["intent", "steps", "response_length"],
         additionalProperties: false,
       },
-      provider,
     );
 
     // ─── 2. ANALYZER ───────────────────────────────────────────
@@ -179,17 +173,16 @@ Deno.serve(async (req) => {
         type: "object",
         properties: {
           emotion: { type: "string", enum: ["neutral", "happy", "curious", "confused", "angry", "sad", "anxious", "excited"] },
-          language: { type: "string", description: "ISO code like en, hi" },
+          language: { type: "string" },
           urgency: { type: "string", enum: ["low", "medium", "high"] },
           topics: { type: "array", items: { type: "string" } },
         },
         required: ["emotion", "language", "urgency"],
         additionalProperties: false,
       },
-      provider,
     );
 
-    // ─── 3. MEMORY ─────────────────────────────────────────────
+    // ─── 3. MEMORY (extraction) ────────────────────────────────
     const memoryAgent = await aiJson(
       `You are the Memory agent. From the user's latest message, extract any durable facts about the USER worth remembering long-term (preferences, habits, identifiable info they share). Be conservative — only save real signals. Respond ONLY via the tool.`,
       `User message: "${message}"\n\nExisting memory:\n${memoryContext}`,
@@ -210,7 +203,6 @@ Deno.serve(async (req) => {
         required: ["new_facts"],
         additionalProperties: false,
       },
-      provider,
     );
 
     // ─── 4. COMMUNICATOR ───────────────────────────────────────
@@ -219,36 +211,44 @@ Deno.serve(async (req) => {
       : platform === "twitter" ? "punchy, public, under 280 chars, witty"
       : "natural and human";
 
-    const emotionGuide = {
+    const emotionGuide: Record<string, string> = {
       confused: "simplify and reassure",
       angry: "stay calm, validate, never escalate",
       curious: "explain a bit more, invite questions",
       sad: "be gentle, empathic",
       anxious: "calm and grounding",
-    } as Record<string, string>;
+    };
     const emotionDirective = emotionGuide[analyzer.emotion] ?? "match their energy";
 
     const commSystem = `${systemBase}\n\nYou are ${agentName}. Speak ${tone}. Languages allowed: ${langs}. Reply in the user's language (${analyzer.language}).
 Platform style: ${platformStyle}.
 Emotion-aware: user seems ${analyzer.emotion} — ${emotionDirective}.
 Length: ${planner.response_length}.
-Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads up). Vary sentence structure. Keep it human.`;
+Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads up). Vary sentence structure. Keep it human. USE the memory and recent conversation to stay context-aware — reference earlier turns when relevant.`;
 
-    const commUser = `Memory you have about this user:\n${memoryContext}\n\nRecent conversation:\n${conversationContext}\n\nUser just said: "${message}"\n\nReply now, in their language, naturally.`;
+    const commUser = `Long-term memory about this user:\n${memoryContext}\n\nRecent conversation (oldest → newest):\n${conversationContext}\n\nUser just said: "${message}"\n\nReply now, in their language, naturally and in context.`;
 
-    const replyText = (await aiText(commSystem, commUser, provider)).trim();
+    const replyText = (await aiText(commSystem, commUser)).trim();
 
-    // persist new memory facts (server-side bypasses RLS)
-    if (memoryAgent.new_facts?.length && platformAccountId) {
+    // ─── PERSIST: short-term (Mongo) ───────────────────────────
+    const now = new Date();
+    await chatCol.insertMany([
+      { owner_id: ownerId, scope_id: scopeId, role: "user", content: message, created_at: now },
+      { owner_id: ownerId, scope_id: scopeId, role: "assistant", content: replyText, created_at: new Date(now.getTime() + 1) },
+    ]);
+
+    // ─── PERSIST: long-term (Mongo upsert by user+key) ─────────
+    if (memoryAgent.new_facts?.length) {
       for (const f of memoryAgent.new_facts) {
-        await supabase.from("long_term_memory").upsert({
-          owner_id: ownerId, platform_account_id: platformAccountId,
-          key: f.key, value: f.value, importance: f.importance,
-        }, { onConflict: "platform_account_id,key" });
+        await memCol.updateOne(
+          { owner_id: ownerId, key: f.key },
+          { $set: { value: f.value, importance: f.importance, updated_at: now }, $setOnInsert: { created_at: now } },
+          { upsert: true },
+        );
       }
     }
 
-    // persist messages + run trace if real conversation
+    // ─── Optional: persist to Postgres for real (non-playground) conversations ─
     let outboundMsgId: string | undefined;
     let inboundMsgId: string | undefined;
     if (!playground && conversationId) {
@@ -277,7 +277,6 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
       });
     }
 
-    // typing-delay calculation for client simulation
     const perChar = persona?.typing_delay_ms_per_char ?? 25;
     const maxDelay = persona?.typing_delay_max_ms ?? 4000;
     const typingDelayMs = Math.min(replyText.length * perChar, maxDelay);
@@ -285,14 +284,18 @@ Rules: never say you're an AI unless asked. Use natural fillers (btw, tbh, heads
     return new Response(JSON.stringify({
       reply: replyText, emotion: analyzer.emotion, language: analyzer.language,
       intent: planner.intent, typingDelayMs, latencyMs: totalLatency,
-      savedFacts: memoryAgent.new_facts ?? [], platformAccountId,
+      savedFacts: memoryAgent.new_facts ?? [],
+      shortTermCount: recentMessages.length,
+      longTermCount: memoryFacts.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("agent-reply error", e);
-    await supabase.from("agent_logs").insert({ level: "error", event: "agent_reply_failed", payload: { error: String(e) } });
+    try {
+      await supabase.from("agent_logs").insert({ level: "error", event: "agent_reply_failed", payload: { error: String(e) } });
+    } catch (_) { /* ignore */ }
     const status = e?.status === 429 ? 429 : e?.status === 402 ? 402 : 500;
     const friendly = status === 429
-      ? "AI is rate-limited right now. Switch this agent to ChatGPT or wait a moment."
+      ? "Gemini is rate-limited right now. Please wait a moment and try again."
       : status === 402
       ? "AI credits exhausted. Add credits in Settings → Workspace → Usage."
       : (e.message ?? "unknown");
