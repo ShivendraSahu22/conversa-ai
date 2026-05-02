@@ -6,7 +6,7 @@ const Landing = () => {
     <div className="min-h-screen bg-background grid place-items-center">
       <div className="text-center space-y-8 px-4">
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-          WELCOME TO <span className="gradient-text">TECKBOOK</span>
+          WELCOME TO <span className="gradient-text">TECHBOOK AI</span>
         </h1>
         <Link to="/auth">
           <Button size="lg" className="bg-gradient-primary hover:opacity-90 surface-glow">
