@@ -34,6 +34,33 @@ const Settings = () => {
   const [twLoaded, setTwLoaded] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
   const [savingTw, setSavingTw] = useState(false);
+  const [testingTw, setTestingTw] = useState(false);
+
+  const testTwitter = async () => {
+    setTestingTw(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "twitter-test-post",
+      );
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (!data?.ok) {
+        toast.error(`Test failed: ${data?.error ?? "unknown error"}`);
+        return;
+      }
+      toast.success(
+        data.deleted
+          ? `Connected ✓ — test tweet posted & deleted (id ${data.tweet_id})`
+          : `Connected ✓ — posted (id ${data.tweet_id}) but couldn't auto-delete`,
+      );
+    } catch (e: any) {
+      toast.error(e.message ?? "Test failed");
+    } finally {
+      setTestingTw(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
