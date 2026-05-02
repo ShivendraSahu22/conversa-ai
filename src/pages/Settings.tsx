@@ -299,7 +299,7 @@ const Settings = () => {
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             onClick={saveTwitter}
             disabled={savingTw}
@@ -308,11 +308,24 @@ const Settings = () => {
             {savingTw ? "Saving…" : "Save credentials"}
           </Button>
           {twLoaded && tw.consumer_key && (
-            <Button variant="outline" onClick={clearTwitter}>
-              Remove
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={testTwitter}
+                disabled={testingTw}
+              >
+                {testingTw ? "Testing…" : "Test post"}
+              </Button>
+              <Button variant="outline" onClick={clearTwitter}>
+                Remove
+              </Button>
+            </>
           )}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Test post sends a tiny tweet then immediately deletes it to confirm
+          your keys have read+write access. Nothing stays on your timeline.
+        </p>
       </Card>
     </div>
   );
