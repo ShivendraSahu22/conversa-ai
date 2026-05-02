@@ -34,6 +34,33 @@ const Settings = () => {
   const [twLoaded, setTwLoaded] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
   const [savingTw, setSavingTw] = useState(false);
+  const [testingTw, setTestingTw] = useState(false);
+
+  const testTwitter = async () => {
+    setTestingTw(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "twitter-test-post",
+      );
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (!data?.ok) {
+        toast.error(`Test failed: ${data?.error ?? "unknown error"}`);
+        return;
+      }
+      toast.success(
+        data.deleted
+          ? `Connected ✓ — test tweet posted & deleted (id ${data.tweet_id})`
+          : `Connected ✓ — posted (id ${data.tweet_id}) but couldn't auto-delete`,
+      );
+    } catch (e: any) {
+      toast.error(e.message ?? "Test failed");
+    } finally {
+      setTestingTw(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -272,7 +299,7 @@ const Settings = () => {
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             onClick={saveTwitter}
             disabled={savingTw}
@@ -281,11 +308,24 @@ const Settings = () => {
             {savingTw ? "Saving…" : "Save credentials"}
           </Button>
           {twLoaded && tw.consumer_key && (
-            <Button variant="outline" onClick={clearTwitter}>
-              Remove
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={testTwitter}
+                disabled={testingTw}
+              >
+                {testingTw ? "Testing…" : "Test post"}
+              </Button>
+              <Button variant="outline" onClick={clearTwitter}>
+                Remove
+              </Button>
+            </>
           )}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Test post sends a tiny tweet then immediately deletes it to confirm
+          your keys have read+write access. Nothing stays on your timeline.
+        </p>
       </Card>
     </div>
   );
